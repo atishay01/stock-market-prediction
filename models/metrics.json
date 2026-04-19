@@ -1,0 +1,289 @@
+{
+  "feature_columns": [
+    "return_1d",
+    "return_5d",
+    "return_10d",
+    "volume_change",
+    "volume_ratio_20",
+    "high_low_spread",
+    "open_close_spread",
+    "ma_5_ratio",
+    "ma_10_ratio",
+    "ma_20_ratio",
+    "volatility_10",
+    "momentum_10_pct",
+    "close_lag_1_ret",
+    "close_lag_2_ret",
+    "close_lag_3_ret",
+    "close_lag_4_ret",
+    "close_lag_5_ret",
+    "sentiment_score"
+  ],
+  "train_tickers": [
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "META",
+    "NVDA",
+    "TSLA",
+    "JPM",
+    "V",
+    "JNJ",
+    "WMT",
+    "PG",
+    "XOM",
+    "KO"
+  ],
+  "persistence_baseline": {
+    "metrics": {
+      "rmse": 6.513,
+      "mae": 3.626,
+      "mape": 1.341,
+      "directional_accuracy": 0.111,
+      "r2_close": 0.9984,
+      "r2_returns": -0.0017
+    }
+  },
+  "random_forest": {
+    "metrics": {
+      "rmse": 6.505,
+      "mae": 3.613,
+      "mape": 1.336,
+      "directional_accuracy": 52.984,
+      "r2_close": 0.9984,
+      "r2_returns": 0.0079
+    },
+    "train_metrics": {
+      "rmse": 3.525,
+      "mae": 1.947,
+      "mape": 1.366,
+      "directional_accuracy": 56.536,
+      "r2_close": 0.9986,
+      "r2_returns": 0.1751
+    },
+    "default_metrics": {
+      "rmse": 6.577,
+      "mae": 3.703,
+      "mape": 1.368,
+      "directional_accuracy": 51.039,
+      "r2_close": 0.9984,
+      "r2_returns": -0.0216
+    },
+    "tuning_mape_reduction_pct": 2.34,
+    "lift_vs_persistence_pct": 0.37,
+    "feature_importance": [
+      {
+        "feature": "high_low_spread",
+        "importance": 0.07761
+      },
+      {
+        "feature": "ma_20_ratio",
+        "importance": 0.06832
+      },
+      {
+        "feature": "return_1d",
+        "importance": 0.06605
+      },
+      {
+        "feature": "volatility_10",
+        "importance": 0.0639
+      },
+      {
+        "feature": "close_lag_4_ret",
+        "importance": 0.06355
+      },
+      {
+        "feature": "close_lag_1_ret",
+        "importance": 0.06233
+      },
+      {
+        "feature": "ma_5_ratio",
+        "importance": 0.06104
+      },
+      {
+        "feature": "close_lag_2_ret",
+        "importance": 0.0559
+      },
+      {
+        "feature": "ma_10_ratio",
+        "importance": 0.05508
+      },
+      {
+        "feature": "return_10d",
+        "importance": 0.05043
+      },
+      {
+        "feature": "sentiment_score",
+        "importance": 0.05001
+      },
+      {
+        "feature": "volume_change",
+        "importance": 0.04968
+      },
+      {
+        "feature": "close_lag_5_ret",
+        "importance": 0.04928
+      },
+      {
+        "feature": "return_5d",
+        "importance": 0.04767
+      },
+      {
+        "feature": "close_lag_3_ret",
+        "importance": 0.04737
+      },
+      {
+        "feature": "open_close_spread",
+        "importance": 0.04692
+      },
+      {
+        "feature": "momentum_10_pct",
+        "importance": 0.04516
+      },
+      {
+        "feature": "volume_ratio_20",
+        "importance": 0.03973
+      }
+    ]
+  },
+  "lstm": {
+    "metrics": {
+      "rmse": 6.731,
+      "mae": 3.709,
+      "mape": 1.376,
+      "directional_accuracy": 52.58,
+      "r2_close": 0.9983,
+      "r2_returns": -0.0885
+    },
+    "train_metrics": {
+      "rmse": 3.544,
+      "mae": 1.955,
+      "mape": 1.36,
+      "directional_accuracy": 55.093,
+      "r2_close": 0.9986,
+      "r2_returns": 0.1805
+    },
+    "lift_vs_persistence_pct": -2.61,
+    "normalization": {
+      "y_mean": 0.0010635906389408496,
+      "y_std": 0.022479090816212282,
+      "lookback": 20
+    }
+  },
+  "per_ticker_rf_metrics": {
+    "AMZN": {
+      "rmse": 4.499,
+      "mae": 3.27,
+      "mape": 1.517,
+      "directional_accuracy": 54.598,
+      "r2_close": 0.9257,
+      "r2_returns": -0.0067
+    },
+    "GOOGL": {
+      "rmse": 4.42,
+      "mae": 3.254,
+      "mape": 1.445,
+      "directional_accuracy": 52.011,
+      "r2_close": 0.995,
+      "r2_returns": 0.0021
+    },
+    "JNJ": {
+      "rmse": 2.072,
+      "mae": 1.489,
+      "mape": 0.831,
+      "directional_accuracy": 54.31,
+      "r2_close": 0.9959,
+      "r2_returns": -0.0066
+    },
+    "JPM": {
+      "rmse": 4.238,
+      "mae": 3.031,
+      "mape": 1.09,
+      "directional_accuracy": 54.885,
+      "r2_close": 0.9778,
+      "r2_returns": -0.0004
+    },
+    "KO": {
+      "rmse": 0.763,
+      "mae": 0.59,
+      "mape": 0.841,
+      "directional_accuracy": 48.563,
+      "r2_close": 0.9695,
+      "r2_returns": -0.0008
+    },
+    "META": {
+      "rmse": 15.126,
+      "mae": 10.502,
+      "mape": 1.631,
+      "directional_accuracy": 52.586,
+      "r2_close": 0.9444,
+      "r2_returns": -0.0022
+    },
+    "MSFT": {
+      "rmse": 7.093,
+      "mae": 4.819,
+      "mape": 1.096,
+      "directional_accuracy": 51.149,
+      "r2_close": 0.9802,
+      "r2_returns": 0.0002
+    },
+    "NVDA": {
+      "rmse": 4.09,
+      "mae": 3.029,
+      "mape": 2.002,
+      "directional_accuracy": 56.034,
+      "r2_close": 0.9799,
+      "r2_returns": 0.0327
+    },
+    "PG": {
+      "rmse": 1.92,
+      "mae": 1.439,
+      "mape": 0.913,
+      "directional_accuracy": 50.575,
+      "r2_close": 0.9596,
+      "r2_returns": -0.0111
+    },
+    "TSLA": {
+      "rmse": 12.638,
+      "mae": 9.747,
+      "mape": 2.74,
+      "directional_accuracy": 53.161,
+      "r2_close": 0.9625,
+      "r2_returns": 0.0108
+    },
+    "V": {
+      "rmse": 4.665,
+      "mae": 3.229,
+      "mape": 0.965,
+      "directional_accuracy": 52.011,
+      "r2_close": 0.9254,
+      "r2_returns": 0.0053
+    },
+    "WMT": {
+      "rmse": 1.613,
+      "mae": 1.153,
+      "mape": 1.109,
+      "directional_accuracy": 54.885,
+      "r2_close": 0.982,
+      "r2_returns": 0.0093
+    },
+    "XOM": {
+      "rmse": 1.954,
+      "mae": 1.42,
+      "mape": 1.18,
+      "directional_accuracy": 54.023,
+      "r2_close": 0.9858,
+      "r2_returns": -0.0146
+    }
+  },
+  "n_train_rows": 18070,
+  "n_test_rows": 4524,
+  "train_date_range": [
+    "2019-05-17",
+    "2024-11-21"
+  ],
+  "test_date_range": [
+    "2024-11-22",
+    "2026-04-16"
+  ]
+}

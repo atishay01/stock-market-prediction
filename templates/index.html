@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Any-Ticker Next-Day Close Forecast</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="hero">
+    <h1>Any-Ticker Next-Day Close Forecast</h1>
+    <p class="subtitle">
+      Cross-ticker LSTM + Random Forest ensemble with VADER news-sentiment scoring.
+      Trained on {{ metrics.train_tickers | length }} tickers
+      ({{ metrics.train_tickers | join(', ') }}),
+      {{ metrics.n_train_rows }} training rows, {{ metrics.n_test_rows }} held-out rows
+      ({{ metrics.test_date_range[0] }} → {{ metrics.test_date_range[1] }}).
+      Features are scale-free, so one model generalises from ^GSPC (~4000) to AAPL (~200).
+    </p>
+  </header>
+
+  <section class="cards">
+    <div class="card highlight">
+      <span class="label">MAPE reduced via hyperparameter tuning</span>
+      <span class="value">{{ metrics.random_forest.tuning_mape_reduction_pct }}%</span>
+      <span class="sub">
+        default {{ metrics.random_forest.default_metrics.mape }}% → tuned {{ metrics.random_forest.metrics.mape }}%
+      </span>
+    </div>
+    <div class="card">
+      <span class="label">Persistence baseline MAPE</span>
+      <span class="value">{{ metrics.persistence_baseline.metrics.mape }}%</span>
+      <span class="sub">tomorrow = today (what we must beat)</span>
+    </div>
+    <div class="card">
+      <span class="label">Random Forest (tuned)</span>
+      <span class="value">{{ metrics.random_forest.metrics.mape }}%</span>
+      <span class="sub">
+        train {{ metrics.random_forest.train_metrics.mape }}% · test {{ metrics.random_forest.metrics.mape }}%<br/>
+        R² close {{ metrics.random_forest.metrics.r2_close }} · R² returns {{ metrics.random_forest.metrics.r2_returns }}
+      </span>
+    </div>
+    <div class="card">
+      <span class="label">LSTM</span>
+      <span class="value">{{ metrics.lstm.metrics.mape }}%</span>
+      <span class="sub">
+        train {{ metrics.lstm.train_metrics.mape }}% · test {{ metrics.lstm.metrics.mape }}%<br/>
+        directional acc: {{ metrics.lstm.metrics.directional_accuracy }}%
+      </span>
+    </div>
+    <div class="card">
+      <span class="label">Lift over persistence</span>
+      <span class="value">
+        RF {{ metrics.random_forest.lift_vs_persistence_pct }}% · LSTM {{ metrics.lstm.lift_vs_persistence_pct }}%
+      </span>
+      <span class="sub">{{ metrics.train_tickers | length }} tickers · {{ feature_count }} features · {{ metrics.n_test_rows }} test rows</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Random Forest feature importance (top 10)</h2>
+    <p class="hint">Which engineered features the tuned RF actually uses. Captures
+       what matters in daily-close prediction without sentiment leakage.</p>
+    <canvas id="feature-importance-chart" height="80"></canvas>
+  </section>
+
+  <section class="panel">
+    <h2>Live prediction for any ticker</h2>
+    <p class="hint">
+      Pulls the latest OHLCV via yfinance, builds 18 scale-free features
+      (returns, spreads, MA ratios, volatility, momentum, lag returns, sentiment),
+      and runs both models. The VADER compound score of the optional headline
+      overrides the sentiment channel for the latest bar.
+    </p>
+    <form id="predict-form">
+      <input id="ticker" name="ticker" type="text"
+             placeholder="Ticker (e.g. AAPL, MSFT, TSLA, ^GSPC)" value="AAPL" />
+      <input id="headline" name="headline" type="text"
+             placeholder="Optional news headline for VADER sentiment" />
+      <button type="submit">Predict next close</button>
+    </form>
+    <div class="ticker-chips">
+      <span class="chip-label">Quick picks:</span>
+      <button class="chip" data-ticker="AAPL">AAPL</button>
+      <button class="chip" data-ticker="MSFT">MSFT</button>
+      <button class="chip" data-ticker="TSLA">TSLA</button>
+      <button class="chip" data-ticker="NVDA">NVDA</button>
+      <button class="chip" data-ticker="GOOGL">GOOGL</button>
+      <button class="chip" data-ticker="^GSPC">^GSPC</button>
+      <button class="chip" data-ticker="AMZN">AMZN</button>
+      <button class="chip" data-ticker="META">META</button>
+    </div>
+    <div id="predict-result" class="result"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Recent closing price (last ~180 trading days)</h2>
+    <canvas id="history-chart" height="110"></canvas>
+  </section>
+
+  <section class="panel">
+    <h2>Backtest: predicted vs. actual next-day close (last ~120 days)</h2>
+    <div id="backtest-badge" class="badge-row"></div>
+    <canvas id="backtest-chart" height="110"></canvas>
+  </section>
+
+  <footer>
+    <span>Artifacts: <code>models/lstm_model.keras</code>, <code>models/rf_model.pkl</code>,
+    <code>models/lstm_scaler.pkl</code></span>
+  </footer>
+
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

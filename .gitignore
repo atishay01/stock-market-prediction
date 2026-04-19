@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+.DS_Store
+*.log
+
+# Keep model artifacts (Render needs them, and the repo is reproducible without them)
+# but ignore training logs and caches
+train.log
+flask.log
+.idea/
+.vscode/

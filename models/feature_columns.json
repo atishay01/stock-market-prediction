@@ -1,0 +1,20 @@
+[
+  "return_1d",
+  "return_5d",
+  "return_10d",
+  "volume_change",
+  "volume_ratio_20",
+  "high_low_spread",
+  "open_close_spread",
+  "ma_5_ratio",
+  "ma_10_ratio",
+  "ma_20_ratio",
+  "volatility_10",
+  "momentum_10_pct",
+  "close_lag_1_ret",
+  "close_lag_2_ret",
+  "close_lag_3_ret",
+  "close_lag_4_ret",
+  "close_lag_5_ret",
+  "sentiment_score"
+]
