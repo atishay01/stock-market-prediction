@@ -16,15 +16,33 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from functools import lru_cache
+
 import joblib
 import numpy as np
 import pandas as pd
 import yfinance as yf
 from curl_cffi import requests as _cc_requests
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 _YF_SESSION = _cc_requests.Session(impersonate="chrome")
 
 from features import FEATURE_COLUMNS, build_inference_features
+
+
+# ---------------------------------------------------------------------------
+# Sentiment scoring
+# ---------------------------------------------------------------------------
+@lru_cache(maxsize=1)
+def _vader() -> SentimentIntensityAnalyzer:
+    return SentimentIntensityAnalyzer()
+
+
+def score_headline(text: str) -> float:
+    """VADER compound score in [-1, 1]. Empty text returns 0.0."""
+    if not text or not text.strip():
+        return 0.0
+    return float(_vader().polarity_scores(text)["compound"])
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_DIR = ROOT / "models"

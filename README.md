@@ -77,9 +77,12 @@ the same weights must cover NVDA volatility and KO stability.)
 
 ```
 recruiter_ready_stock_project/
-├── app.py                     Flask entry
+├── app.py                     Flask entry — 5 routes, ~95 lines
 ├── run.bat                    One-click launcher (Windows)
-├── requirements.txt
+├── Procfile                   Production start command (Render/Heroku)
+├── .python-version            Python 3.11.9 pin
+├── requirements.txt           Dev/training deps (incl. tensorflow)
+├── requirements-prod.txt      Render free-tier deps (no tensorflow)
 ├── README.md
 ├── models/                    written by src/train.py
 │   ├── rf_model.pkl
@@ -88,19 +91,28 @@ recruiter_ready_stock_project/
 │   ├── feature_columns.json
 │   └── metrics.json
 ├── src/
-│   ├── features.py            18 scale-free features
-│   ├── sentiment.py           VADER headline scorer
-│   ├── train.py               multi-ticker yfinance downloader + trainer
-│   └── predict.py             live per-ticker inference
-├── templates/index.html
+│   ├── features.py            18 scale-free engineered features
+│   ├── train.py               multi-ticker downloader + RF + LSTM trainer
+│   ├── predict.py             inference + VADER sentiment + CSV fallback
+│   └── snapshot_data.py       refresh data/cache/*.csv (run locally)
+├── data/
+│   ├── sp_dataset.csv         original S&P historical data
+│   └── cache/                 2y OHLCV snapshots (production fallback)
+├── templates/index.html       Dashboard
 ├── static/{style.css, dashboard.js}
-├── notebooks/stock_analysis.ipynb
-└── data/sp_dataset.csv        historical S&P reference
+└── notebooks/stock_analysis.ipynb
 ```
 
-## Notes on rate limiting
+## Production deploy notes (Render)
 
-Yahoo Finance aggressively rate-limits plain `requests`. The project uses a
-`curl_cffi` session with Chrome TLS fingerprint (`impersonate="chrome"`) to
-avoid `YFRateLimitError` during bulk training downloads. The same session is
-reused in `predict.py` for live dashboard fetches.
+The deployed version sets `LOAD_LSTM=false` and uses `requirements-prod.txt`
+because Render's free tier (512 MB RAM) cannot fit TensorFlow. The RF model
+serves all production predictions; the LSTM is in the repo for code review.
+
+Yahoo Finance blocks data-center IPs, so the deployed server falls back to
+bundled CSV snapshots in `data/cache/` when live yfinance fails. Refresh the
+snapshots locally with `python src/snapshot_data.py` and commit.
+
+Locally, yfinance is tried first via a `curl_cffi` Chrome-impersonating
+session (avoids `YFRateLimitError`); the CSV fallback only kicks in when
+the live fetch returns empty.

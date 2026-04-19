@@ -22,8 +22,9 @@ from flask import Flask, jsonify, render_template, request
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from predict import holdout_backtest, load_bundle, predict_next_close, recent_series
-from sentiment import score_headline
+from predict import (
+    holdout_backtest, load_bundle, predict_next_close, recent_series, score_headline,
+)
 
 app = Flask(__name__, template_folder=str(ROOT / "templates"), static_folder=str(ROOT / "static"))
 
