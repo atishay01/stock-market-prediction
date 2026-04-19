@@ -76,34 +76,62 @@ def load_bundle() -> PredictionBundle:
     )
 
 
+_CACHE_DIR = ROOT / "data" / "cache"
+
+
+def _safe_name(ticker: str) -> str:
+    return ticker.replace("^", "_").upper()
+
+
+def _load_snapshot(ticker: str) -> pd.DataFrame | None:
+    """Return bundled CSV snapshot for ticker, or None if unavailable.
+    Used as fallback when yfinance is blocked (Yahoo aggressively rate-limits
+    data-center IPs like Render's servers)."""
+    p = _CACHE_DIR / f"{_safe_name(ticker)}.csv"
+    if not p.exists():
+        return None
+    df = pd.read_csv(p, parse_dates=["Date"])
+    return df
+
+
 def fetch_ticker_history(ticker: str, period: str = "1y") -> pd.DataFrame:
-    """Download recent OHLCV for a ticker. In-memory cached for 5 minutes."""
+    """Download recent OHLCV for a ticker. Tries yfinance first; falls back
+    to bundled CSV snapshot if blocked. In-memory cached for 5 minutes."""
     key = (ticker.upper(), period)
     now = time.time()
     cached = _HISTORY_CACHE.get(key)
     if cached and now - cached[0] < _CACHE_TTL:
         return cached[1]
 
-    # Use yf.download (not Ticker.history) — Ticker.history returns empty for
-    # some symbols (e.g. MSFT) due to a yfinance quirk, while yf.download works.
+    df = None
     try:
         df = yf.download(
             ticker, period=period, progress=False, auto_adjust=False,
             threads=False, session=_YF_SESSION,
         )
     except Exception as exc:
-        raise ValueError(f"yfinance fetch failed for '{ticker}': {exc}")
-    if df is None or df.empty:
-        raise ValueError(f"No data returned for ticker '{ticker}' — check the symbol.")
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    df = df.reset_index()
-    date_col = "Date" if "Date" in df.columns else df.columns[0]
-    df = df.rename(columns={date_col: "Date"})
-    df["Date"] = pd.to_datetime(df["Date"]).dt.tz_localize(None)
-    if "Adj Close" not in df.columns:
-        df["Adj Close"] = df["Close"]
-    df = df[["Date", "Open", "High", "Low", "Close", "Adj Close", "Volume"]].copy()
+        print(f"[predict] yfinance fetch failed for '{ticker}': {exc}")
+
+    if df is None or (hasattr(df, "empty") and df.empty):
+        snap = _load_snapshot(ticker)
+        if snap is None or snap.empty:
+            raise ValueError(
+                f"No live data for '{ticker}' and no bundled snapshot. "
+                f"Try a ticker in: {sorted(p.stem for p in _CACHE_DIR.glob('*.csv'))}"
+            )
+        print(f"[predict] using bundled snapshot for '{ticker}' "
+              f"(yfinance blocked or empty)")
+        df = snap
+    else:
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+        df = df.reset_index()
+        date_col = "Date" if "Date" in df.columns else df.columns[0]
+        df = df.rename(columns={date_col: "Date"})
+        df["Date"] = pd.to_datetime(df["Date"]).dt.tz_localize(None)
+        if "Adj Close" not in df.columns:
+            df["Adj Close"] = df["Close"]
+        df = df[["Date", "Open", "High", "Low", "Close", "Adj Close", "Volume"]].copy()
 
     _HISTORY_CACHE[key] = (now, df)
     return df
