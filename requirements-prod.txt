@@ -1,5 +1,9 @@
 # Production dependencies for Render deploy.
-# TensorFlow excluded — Render free tier (512MB) cannot fit it; RF-only in prod.
+# Full TensorFlow excluded (~500 MB, won't fit 512 MB free tier). Instead the
+# Keras LSTM's weights are exported to ``models/lstm_weights.npz`` via
+# ``src/export_lstm_weights.py`` and served with a pure-numpy forward pass
+# (``src/lstm_numpy.py``). No extra binary dep required — numpy is already
+# pulled in by pandas/scikit-learn.
 # Full requirements.txt is used for local training/development.
 flask==3.0.3
 gunicorn==23.0.0

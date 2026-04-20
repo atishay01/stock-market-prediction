@@ -1,0 +1,13 @@
+{
+    "folders": [
+        { "path": "." }
+    ],
+    "settings": {
+        "window.title": "Stock Market Prediction — ${activeEditorShort}",
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/.ipynb_checkpoints": true,
+            "**/.pytest_cache": true
+        }
+    }
+}

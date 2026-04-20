@@ -10,10 +10,6 @@ import os
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
 
-# TF imported only when LSTM is enabled — Render free tier cannot fit it.
-if os.environ.get("LOAD_LSTM", "true").lower() not in ("false", "0", "no"):
-    import tensorflow as tf  # noqa: E402,F401
-
 import sys
 from pathlib import Path
 

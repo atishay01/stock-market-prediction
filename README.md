@@ -105,9 +105,15 @@ recruiter_ready_stock_project/
 
 ## Production deploy notes (Render)
 
-The deployed version sets `LOAD_LSTM=false` and uses `requirements-prod.txt`
-because Render's free tier (512 MB RAM) cannot fit TensorFlow. The RF model
-serves all production predictions; the LSTM is in the repo for code review.
+Render's free tier (512 MB RAM) cannot fit TensorFlow (~500 MB). Instead of
+disabling the LSTM in prod, the trained Keras model's weights are exported
+to `models/lstm_weights.npz` (~140 KB) via `src/export_lstm_weights.py`,
+and the Flask app runs a pure-numpy forward pass (`src/lstm_numpy.py`) at
+inference time. Both RF and LSTM serve live predictions in production with
+no TensorFlow dependency — the numpy path matches Keras output to float32
+precision (diff 0.0 on sanity-check inputs).
+
+Set `LOAD_LSTM=false` to force RF-only mode if needed.
 
 Yahoo Finance blocks data-center IPs, so the deployed server falls back to
 bundled CSV snapshots in `data/cache/` when live yfinance fails. Refresh the
