@@ -4,9 +4,14 @@ The Flask app loads `PredictionBundle` once at startup and reuses it across
 requests. Per-ticker OHLCV fetches are cached in-process for 5 minutes to
 keep the dashboard responsive.
 
-Set the env var ``LOAD_LSTM=false`` to skip loading the Keras model. This
-is used in the Render free-tier deploy, where 512MB RAM cannot fit
-TensorFlow. The RF model handles all predictions in that mode.
+LSTM backend selection (in order of preference):
+  1. ``models/lstm_weights.npz`` + ``src/lstm_numpy.py`` — pure numpy
+     forward pass, ~140 KB weights, zero binary deps beyond numpy. This
+     is the Render-free-tier path (512 MB RAM, can't fit TensorFlow).
+  2. ``models/lstm_model.keras`` via full Keras — dev-only fallback for
+     machines without the exported weights file.
+
+Set the env var ``LOAD_LSTM=false`` to force-disable LSTM (RF-only).
 """
 from __future__ import annotations
 
@@ -54,30 +59,71 @@ _CACHE_TTL = 300  # seconds
 @dataclass
 class PredictionBundle:
     rf_model: object
-    lstm_model: object | None
+    lstm_predict: object | None  # callable: np.ndarray[1,L,F] -> float (scaled)
     lstm_scaler: object | None
     lstm_norm: dict
     feature_columns: list[str]
     metrics: dict
     lstm_enabled: bool
+    lstm_backend: str  # "tflite_runtime", "tf_lite", "keras", or "disabled"
 
 
 def _lstm_enabled() -> bool:
     return os.environ.get("LOAD_LSTM", "true").lower() not in ("false", "0", "no")
 
 
+def _make_numpy_predict(npz_path: Path):
+    from lstm_numpy import NumpyLSTM
+    model = NumpyLSTM.load(npz_path)
+
+    def predict(x: np.ndarray) -> float:
+        return float(model.predict(x)[0])
+
+    return predict, "numpy"
+
+
+def _make_keras_predict(keras_path: Path):
+    """Dev-only fallback: load full Keras model. Requires full TensorFlow in
+    memory (~500 MB), so this path is only taken when lstm_weights.npz
+    hasn't been generated yet on a local machine."""
+    from tensorflow.keras.models import load_model
+    model = load_model(keras_path)
+
+    def predict(x: np.ndarray) -> float:
+        return float(model.predict(x, verbose=0).flatten()[0])
+
+    return predict, "keras"
+
+
 def load_bundle() -> PredictionBundle:
     metrics = json.loads((MODEL_DIR / "metrics.json").read_text())
     feature_columns = json.loads((MODEL_DIR / "feature_columns.json").read_text())
 
-    lstm_model = None
+    lstm_predict = None
     lstm_scaler = None
+    backend = "disabled"
     enabled = _lstm_enabled()
+
     if enabled:
-        # Keras first so TF thread pools come up before joblib/loky.
-        from tensorflow.keras.models import load_model
-        lstm_model = load_model(MODEL_DIR / "lstm_model.keras")
-        lstm_scaler = joblib.load(MODEL_DIR / "lstm_scaler.pkl")
+        npz_path = MODEL_DIR / "lstm_weights.npz"
+        keras_path = MODEL_DIR / "lstm_model.keras"
+        if npz_path.exists():
+            lstm_predict, backend = _make_numpy_predict(npz_path)
+        elif keras_path.exists():
+            try:
+                lstm_predict, backend = _make_keras_predict(keras_path)
+            except ImportError:
+                print("[predict] No lstm_weights.npz and no TensorFlow — "
+                      "RF-only. Run src/export_lstm_weights.py to generate "
+                      "the numpy weights.")
+                enabled = False
+        else:
+            print("[predict] No LSTM artifact found — RF-only.")
+            enabled = False
+
+        if lstm_predict is not None:
+            lstm_scaler = joblib.load(MODEL_DIR / "lstm_scaler.pkl")
+            print(f"[predict] LSTM backend: {backend}")
     else:
         print("[predict] LOAD_LSTM=false — LSTM disabled, RF-only inference.")
 
@@ -85,12 +131,13 @@ def load_bundle() -> PredictionBundle:
 
     return PredictionBundle(
         rf_model=rf_model,
-        lstm_model=lstm_model,
+        lstm_predict=lstm_predict,
         lstm_scaler=lstm_scaler,
         lstm_norm=metrics["lstm"]["normalization"],
         feature_columns=feature_columns,
         metrics=metrics,
-        lstm_enabled=enabled,
+        lstm_enabled=enabled and lstm_predict is not None,
+        lstm_backend=backend,
     )
 
 
@@ -173,15 +220,15 @@ def predict_next_close(bundle: PredictionBundle, ticker: str, sentiment_score: f
     rf_return = float(bundle.rf_model.predict(row)[0])
     rf_pred = last_close * (1.0 + rf_return)
 
-    if bundle.lstm_enabled and bundle.lstm_model is not None:
+    if bundle.lstm_enabled and bundle.lstm_predict is not None:
         seq = features[FEATURE_COLUMNS].tail(lookback).values
-        x = bundle.lstm_scaler.transform(seq)[None, :, :]
-        scaled = float(bundle.lstm_model.predict(x, verbose=0).flatten()[0])
+        x = bundle.lstm_scaler.transform(seq)[None, :, :].astype(np.float32)
+        scaled = bundle.lstm_predict(x)
         lstm_return = scaled * bundle.lstm_norm["y_std"] + bundle.lstm_norm["y_mean"]
         lstm_pred = last_close * (1.0 + lstm_return)
     else:
-        # LSTM disabled in this deployment (e.g. Render free tier).
-        # Surface the saved holdout metric so the dashboard can still show it.
+        # LSTM disabled (or no artifact available locally) — surface the saved
+        # holdout metric so the dashboard can still show it.
         lstm_return = None
         lstm_pred = None
 
@@ -201,6 +248,7 @@ def predict_next_close(bundle: PredictionBundle, ticker: str, sentiment_score: f
         "sentiment_score": round(float(sentiment_score), 3),
         "rf_train_mape": per_ticker.get(ticker.upper(), {}).get("mape"),
         "lstm_enabled": bundle.lstm_enabled,
+        "lstm_backend": bundle.lstm_backend,
     }
 
 
